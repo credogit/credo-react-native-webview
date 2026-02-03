@@ -1,106 +1,153 @@
-# Credo-React-Native-Webview
+# react-native-credo-payment
 
-The package allows you accept payment using credo
+A React Native SDK for integrating [Credo](https://credocentral.com) payment gateway into your mobile applications.
 
-### Installation
+## Installation
 
-Add Credo-React-Native-Webview to your project by running;
+```bash
+npm install react-native-credo-payment react-native-webview
+# or
+yarn add react-native-credo-payment react-native-webview
+```
 
-`npm install credo-react-native-webview react-native-webview`
+### iOS Setup
 
-or
+```bash
+cd ios && pod install
+```
 
-`yarn add credo-react-native-webview react-native-webview`
+## Usage
 
+### Basic Example
 
-for iOS: `cd iOS && pod install && cd ..`
-
-
-### Example Usage 
-
-```javascript
+```tsx
 import React, { useState } from 'react';
-import { View, Text } from 'react-native';
-import  { Credo }  from 'credo-react-native-webview';
+import { View, Button, Alert } from 'react-native';
+import { CredoPayment } from 'react-native-credo-payment';
 
+const PaymentScreen = () => {
+  const [showPayment, setShowPayment] = useState(false);
 
-const Pay = () => {
-  const [modalVisible, setModalVisible] = useState(false);
+  const handleSuccess = (response) => {
+    console.log('Payment successful:', response);
+    Alert.alert('Success', 'Payment completed!');
+    setShowPayment(false);
+  };
 
-  const closeModal = () => setModalVisible(false);
-  const handleSubmit = () => setModalVisible(true);
+  const handleClose = () => {
+    console.log('Payment closed');
+    setShowPayment(false);
+  };
 
   return (
-    <View style={{ flex: 1 }}>
-    Î<Credo
-        amount={3500}
+    <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
+      <Button title="Pay ₦5,000" onPress={() => setShowPayment(true)} />
+
+      <CredoPayment
+        publicKey="0PUBxxxxxxxxxxxxxxxxxxxxxxxx"
+        amount={500000} // Amount in kobo (₦5,000)
+        email="customer@example.com"
         currency="NGN"
-        customerEmail="test@credo.com"
-        customerName="Credo Dibs"
-        customerPhoneNo="08090000000"
-        publicKey="your-public-key"
-        showModal={modalVisible}
-        onSuccess={(response) => {
-          //handle response
-        }}
-        closeModal={closeModal}
-     />
-     <Pressable onPress={handleSubmit} title="Submit">
-        <Text>Test Payment</Text>
-     </Pressable>
+        visible={showPayment}
+        onSuccess={handleSuccess}
+        onClose={handleClose}
+      />
     </View>
   );
+};
+
+export default PaymentScreen;
+```
+
+### Using the Hook
+
+```tsx
+import React from 'react';
+import { View, Button } from 'react-native';
+import { CredoPayment, useCredoPayment } from 'react-native-credo-payment';
+
+const PaymentScreen = () => {
+  const {
+    visible,
+    openPaymentModal,
+    handleSuccess,
+    handleClose,
+  } = useCredoPayment({
+    onSuccess: (response) => {
+      console.log('Payment successful:', response);
+    },
+    onClose: () => {
+      console.log('Payment modal closed');
+    },
+  });
+
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
+      <Button title="Pay Now" onPress={openPaymentModal} />
+
+      <CredoPayment
+        publicKey="0PUBxxxxxxxxxxxxxxxxxxxxxxxx"
+        amount={500000}
+        email="customer@example.com"
+        visible={visible}
+        onSuccess={handleSuccess}
+        onClose={handleClose}
+      />
+    </View>
+  );
+};
+```
+
+## Props
+
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| `publicKey` | `string` | Yes | Your Credo public key (starts with `0PUB` for test, `1PUB` for live) |
+| `amount` | `number` | Yes | Amount in the smallest currency unit (e.g., kobo for NGN) |
+| `email` | `string` | Yes | Customer's email address |
+| `visible` | `boolean` | Yes | Controls the visibility of the payment modal |
+| `onSuccess` | `(response) => void` | Yes | Callback when payment is successful |
+| `onClose` | `() => void` | Yes | Callback when the payment modal is closed |
+| `currency` | `string` | No | Currency code (default: `'NGN'`). Supported: `NGN`, `USD`, `GHS`, `ZAR` |
+| `reference` | `string` | No | Unique transaction reference (auto-generated if not provided) |
+| `customerName` | `string` | No | Customer's full name |
+| `customerPhone` | `string` | No | Customer's phone number |
+| `channels` | `string[]` | No | Payment channels to enable: `['card', 'bank', 'ussd', 'qr']` |
+| `metadata` | `object` | No | Additional data to attach to the transaction |
+| `onError` | `(error) => void` | No | Callback when an error occurs |
+| `paymentLink` | `string` | No | Direct payment link (bypasses initialization) |
+
+## Response Object
+
+The `onSuccess` callback receives a response object:
+
+```typescript
+{
+  transRef: string;    // Transaction reference
+  status: string;      // Transaction status
+  amount: number;      // Amount charged
+  currency: string;    // Currency code
 }
 ```
 
-## API's
+## Test vs Live Mode
 
-#### []()All Credo-React-Native-Webview API
+- **Test Mode**: Use public keys starting with `0PUB` (uses `api.credodemo.com`)
+- **Live Mode**: Use public keys starting with `1PUB` (uses `api.credocentral.com`)
 
+Get your API keys from [credocentral.com](https://credocentral.com)
 
-<br/>
+## Requirements
 
-## API
+- React Native >= 0.65.0
+- react-native-webview >= 11.0.0
 
-| <b>Property<b>     | Type                             | Required | Description                                                                                                                    |
-| ------------------ | -------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| publicKey           |  `string`      | ✔️       | Public Credo key(visit credocentral.com to get yours)                                                                                                                    |
-| amount             | `string` or `number` | ✔️       | amount to be charged, should be greater than #100                                                                                                                    
-| customerEmail            | `string`      | ✔️       | Customer's email address email                                                                                         
-| customerName            | `string`       | ✔️       | Customer's name                                                                                                                                                     |
-| customerPhoneNo         | `string`       |     ✔️      | Customer's phone number                                                                                                                                                    
-| referenceNo        | `string`      |          | Reference number, if you have already generated one. This would be auto generated by Credo if you don't provide it.                                                                                                                                                                                 
-| showModal     | `boolean`    |     ✔️       | Set modal visibility. When it is true, the Credo Payment widget pops up.                                                                                                                                                                                                
-| closeModal | `Function`  |    ✔️      | Function to be called to set `showModal` to `false`.                                                                                                                  
-| onSuccess     | `Function` |    ✔️      | Function to be called after a successful transaction. You can provide a function that looks like this: `(successResponse: SuccessResponse) => void;`                                                                                                              
-| onCancel    | `Function`  |          |  callback function if user cancels or payment transaction could not be verified. 
+## License
 
-## [](https://github.com/credogit/credo-react-native-webview)Contributions
+MIT
 
-Would you like to contribute to this package? [Read how to contribute](https://github.com/credogit/credo-react-native-webview/blob/master/contribution.md) and send in your PR!
+## Support
 
-## [](https://github.com/credogit/credo-react-native-webview#licensing)Licensing
+For issues and feature requests, please [open an issue](https://github.com/anthropics/credo-react-native-webview/issues) on GitHub.
 
-This project is licensed under MIT license.
-
-
-## Contributors
-
-Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
-
-<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- prettier-ignore-start -->
-<!-- markdownlint-disable -->
-<table>
-  <tr>
-    <td align="center"><a href="https://github.com/Olaide-EO"><img src="https://avatars.githubusercontent.com/u/30773360?v=4" width="100px;" alt=""/><br /><sub><b>Olaide E.O </b></sub></a><br /><a href=" https://www.linkedin.com/in/olaide-e-o-a60a07a3/" title="Profile">💻</a> <a href="https://github.com/Olaide-EO" title="Github">📖</a></td>
-  </tr>
- 
-</table>
-
-<!-- markdownlint-restore -->
-<!-- prettier-ignore-end -->
-
-<!-- ALL-CONTRIBUTORS-LIST:END -->
-
-This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!
+For Credo-specific questions, contact [hello@credocentral.com](mailto:hello@credocentral.com)
