@@ -125,7 +125,8 @@ const CredoPayment = forwardRef<CredoPaymentRef, CredoPaymentProps>(
 
         if (customerName) payload.customerName = customerName;
         if (customerPhone) payload.customerPhone = customerPhone;
-        if (callbackUrl) payload.callbackUrl = callbackUrl;
+        // Always set a callback URL so we can detect payment completion
+        payload.callbackUrl = callbackUrl || 'https://credo-payment-callback.app/verify';
         if (channels && channels.length > 0) payload.channels = channels;
         if (metadata) payload.metadata = metadata;
 
@@ -193,26 +194,40 @@ const CredoPayment = forwardRef<CredoPaymentRef, CredoPaymentProps>(
         const { url } = navState;
         console.log('Navigation:', url);
 
-        // Check for success/callback URLs
-        if (url.includes('transaction-successful') || url.includes('status=successful')) {
+        // Default callback URL we set
+        const defaultCallback = 'https://credo-payment-callback.app/verify';
+
+        // Check if redirected to callback URL (payment flow completed)
+        if (
+          url.startsWith(defaultCallback) ||
+          (callbackUrl && url.startsWith(callbackUrl))
+        ) {
+          // Extract transRef from URL if present
+          let urlTransRef = transRef;
+          try {
+            const urlParams = new URL(url).searchParams;
+            urlTransRef = urlParams.get('transRef') || urlParams.get('reference') || transRef;
+          } catch (e) {
+            console.log('Could not parse URL params:', e);
+          }
+
+          // Close modal and call onSuccess - verification happens on app side
           setShowModal(false);
+          setPaymentUrl(null);
+
           onSuccess({
-            transRef: transRef,
-            status: 'successful',
+            transRef: urlTransRef,
+            status: 'pending', // App should verify actual status
             amount: amount,
             currency: currency,
           } as TransactionResponse);
-        } else if (url.includes('transaction-failed') || url.includes('status=failed')) {
-          setShowModal(false);
-          if (onError) {
-            onError(new Error('Transaction failed'));
-          }
-          onClose();
-        } else if (url.includes('close') || url.includes('cancelled')) {
+        }
+        // Check for close/cancel
+        else if (url.toLowerCase().includes('cancel') || url.toLowerCase().includes('close')) {
           handleClose();
         }
       },
-      [transRef, amount, currency, onSuccess, onError, onClose, handleClose]
+      [transRef, amount, currency, callbackUrl, onSuccess, handleClose]
     );
 
     if (!showModal) {

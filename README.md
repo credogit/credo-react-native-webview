@@ -48,6 +48,7 @@ const PaymentScreen = () => {
         amount={500000} // Amount in kobo (₦5,000)
         email="customer@example.com"
         currency="NGN"
+        callbackUrl="https://your-website.com/payment/callback"
         visible={showPayment}
         onSuccess={handleSuccess}
         onClose={handleClose}
@@ -89,6 +90,7 @@ const PaymentScreen = () => {
         publicKey="0PUBxxxxxxxxxxxxxxxxxxxxxxxx"
         amount={500000}
         email="customer@example.com"
+        callbackUrl="https://your-website.com/payment/callback"
         visible={visible}
         onSuccess={handleSuccess}
         onClose={handleClose}
@@ -116,6 +118,7 @@ const PaymentScreen = () => {
 | `metadata` | `object` | No | Additional data to attach to the transaction |
 | `onError` | `(error) => void` | No | Callback when an error occurs |
 | `paymentLink` | `string` | No | Direct payment link (bypasses initialization) |
+| `callbackUrl` | `string` | Yes* | URL where Credo redirects after payment. The SDK detects this redirect to close the modal and trigger `onSuccess`. *Required for payment completion detection. |
 
 ## Response Object
 
@@ -124,10 +127,57 @@ The `onSuccess` callback receives a response object:
 ```typescript
 {
   transRef: string;    // Transaction reference
-  status: string;      // Transaction status
+  status: string;      // Status will be 'pending' - verify on your server
   amount: number;      // Amount charged
   currency: string;    // Currency code
 }
+```
+
+## Payment Flow
+
+1. User initiates payment
+2. SDK opens modal and loads Credo payment page
+3. User completes payment on the Credo page
+4. Credo redirects to your `callbackUrl`
+5. SDK detects the redirect, closes modal, and calls `onSuccess` with `transRef`
+6. **Important**: Your app should verify the transaction status on your backend using the `transRef`
+
+### Verify Transaction API
+
+**Endpoint:** `GET https://api.credocentral.com/transaction/{transRef}/verify`
+
+> For test mode, use: `https://api.credodemo.com/transaction/{transRef}/verify`
+
+```typescript
+// Example: Verify transaction on your backend
+const handleSuccess = async (response) => {
+  const { transRef } = response;
+
+  // Call your backend to verify the transaction
+  const result = await fetch(`https://your-api.com/verify-payment/${transRef}`);
+  const data = await result.json();
+
+  if (data.status === 'successful') {
+    // Payment confirmed - grant access, show success screen, etc.
+  }
+};
+```
+
+Your backend should call the Credo verify endpoint with your **private/secret key** (not the public key) in the `Authorization` header:
+
+```javascript
+// Backend example (Node.js)
+const verifyTransaction = async (transRef) => {
+  const response = await fetch(
+    `https://api.credocentral.com/transaction/${transRef}/verify`,
+    {
+      headers: {
+        'Authorization': 'YOUR_SECRET_KEY', // e.g., 0SEC... (test) or 1SEC... (live)
+      },
+    }
+  );
+  return response.json();
+};
 ```
 
 ## Test vs Live Mode
@@ -148,6 +198,6 @@ MIT
 
 ## Support
 
-For issues and feature requests, please [open an issue](https://github.com/anthropics/credo-react-native-webview/issues) on GitHub.
+For issues and feature requests, please [open an issue](https://github.com/credogit/credo-react-native-webview/issues) on GitHub.
 
 For Credo-specific questions, contact [hello@credocentral.com](mailto:hello@credocentral.com)
